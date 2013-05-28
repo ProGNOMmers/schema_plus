@@ -25,15 +25,15 @@ module SchemaPlus::ActiveRecord::ConnectionAdapters
       # override rails' :force to cascade
       drop_table(table, if_exists: true, cascade: true) if options.delete(:force)
 
-      indexes = []
+      indexes = {}
       create_table_without_schema_plus(table, options) do |table_definition|
         table_definition.schema_plus_config = SchemaPlus.config.merge(config_options)
         table_definition.name = table
         yield table_definition if block_given?
         indexes = table_definition.indexes
       end
-      indexes.each do |index|
-        add_index(table, index.columns, index.opts)
+      indexes.each do |column_name, options|
+        add_index(table, column_name, options)
       end
     end
 
@@ -51,17 +51,17 @@ module SchemaPlus::ActiveRecord::ConnectionAdapters
     # legacy explicit add_index statements, for platforms that would raise
     # an error.)
     #
-    def add_index_with_schema_plus(table, columns, options={})
-      add_index_without_schema_plus(table, columns, options)
+    def add_index_with_schema_plus(table_name, column_name, options = {})
+      add_index_without_schema_plus(table_name, column_name, options)
     rescue => e
-      SchemaStatements.add_index_exception_handler(self, table, columns, options, e)
+      SchemaStatements.add_index_exception_handler(self, table_name, column_name, options, e)
     end
 
-    def self.add_index_exception_handler(connection, table, columns, options, e) #:nodoc:
+    def self.add_index_exception_handler(connection, table_name, column_name, options, e) #:nodoc:
       raise unless e.message.match(/["']([^"']+)["'].*already exists/)
       name = $1
-      existing = connection.indexes(table).find{|i| i.name == name}
-      attempted = ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table, columns, options.merge(:name => name)) 
+      existing = connection.indexes(table).find{|n| n == name}
+      attempted = ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, column_name, options.merge(:name => name)) 
       raise if attempted != existing
       ::ActiveRecord::Base.logger.warn "[schema_plus] Index name #{name.inspect}' on table #{table.inspect} already exists. Skipping."
     end

@@ -77,17 +77,17 @@ module SchemaPlus::ActiveRecord::ConnectionAdapters
         alias_method_chain :references, :schema_plus
         alias_method_chain :belongs_to, :schema_plus
         alias_method_chain :primary_key, :schema_plus
-        alias_method_chain :to_sql, :schema_plus
+        # alias_method_chain :to_sql, :schema_plus
       end
     end
         
     def initialize_with_schema_plus(*args) #:nodoc:
       initialize_without_schema_plus(*args)
       @foreign_keys = []
-      @indexes = []
+      @indexes = {}
     end
 
-    def primary_key_with_schema_plus(name, options = {}) #:nodoc:
+    def primary_key_with_schema_plus(name, type = :primary_key, options = {}) #:nodoc:
       column(name, :primary_key, options)
     end
 
@@ -123,7 +123,7 @@ module SchemaPlus::ActiveRecord::ConnectionAdapters
 
     # Define an index for the current 
     def index(column_name, options={})
-      @indexes << ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(self.name, column_name, options)
+      @indexes[column_name] = ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(self.name, column_name, options)
     end
 
     def foreign_key(column_names, references_table_name, references_column_names, options = {})
